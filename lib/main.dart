@@ -7,27 +7,6 @@ void main() => runApp(
   )
 );
 
-extension OptionalInfixAddition<T extends num> on T? {
-  T? operator + (T? other) {
-    final shadow = this;
-    if (shadow != null) {
-      return shadow + (other ?? 0) as T;
-    } else {
-      return null;
-    }
-  }
-}
-
-class CounterNotifier extends StateNotifier<int?> {
-  CounterNotifier(): super(null);
-
-  void increment() => state = state == null ? 1 : state + 1;
-}
-
-final counterProvider = StateNotifierProvider<CounterNotifier, int?>((ref) {
-  return CounterNotifier();
-});
-
 class App extends StatelessWidget {
   const App({Key? key}) : super(key: key);
 
@@ -43,41 +22,88 @@ class App extends StatelessWidget {
   }
 }
 
+enum City {
+  cameroon,
+  nigeria,
+  tokyo,
+}
+
+typedef WeatherEmoji = String;
+
+Future<WeatherEmoji> getWeather(City city) async {
+  await Future.delayed(const Duration(seconds: 1));
+  switch (city) {
+    case City.cameroon:
+      return '🌤';
+    case City.nigeria:
+      return '🌧';
+    case City.tokyo:
+      return '🌩';
+    default:
+      return '🔥';
+  }
+}
+
+// ui writes and read from this provider
+final currentCityProvider = StateProvider<City?>(
+  (ref) => null,
+);
+
+const unknownWeatherEmoji = '🤷';
+
+// will be read by the ui
+final weatherProvider = FutureProvider<WeatherEmoji>((ref) async {
+  final city = ref.watch(currentCityProvider);
+  if (city == null) {
+    return unknownWeatherEmoji;
+  } else {
+    return getWeather(city);
+  }
+});
+
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentWeather = ref.watch(weatherProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Consumer(
-          builder: (context, ref, child) {
-            final count = ref.watch(counterProvider);
-            final text = count == null
-              ? 'Press the button'
-              : count.toString();
-              return Text(text);
-          },
-          child: const Text('Home Page')
-        ),
+        title: const Text('Home Page'),
         centerTitle: true,
       ),
-      body: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextButton(
-              onPressed: ref.read(counterProvider.notifier).increment,
-              child: const Text(
-                'Increment counter',
-                style: TextStyle(
-                  fontSize: 20,
-                  color: Colors.white,
-                ),
-              )
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+        currentWeather.when(
+          data: (data) => Text(data, style: const TextStyle(fontSize: 40),),
+          error: (error, stackTrace) => Text('Error: $error'),
+          loading: () => const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: CircularProgressIndicator()
             )
-          ],
-        ),
+),
+          Expanded(
+            child: ListView.builder(
+              itemCount: City.values.length,
+              itemBuilder: (context, index) {
+                final city = City.values[index];
+                final isSelected = city == ref.watch(currentCityProvider);
+                return ListTile(
+                  title: Text(
+                    city.toString(),
+                  ),
+                  trailing: isSelected
+                    ? const Icon(Icons.check, color: Colors.blue)
+                    : null,
+                  onTap: () =>
+                    ref.read(currentCityProvider.notifier)
+                      .state = city,
+                );
+              }
+            ),
+          ),
+        ],
       ),
     );
   }
