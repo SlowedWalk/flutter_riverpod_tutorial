@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-void main() => runApp(
-  const ProviderScope(
-    child: App()
-  )
-);
+void main() => runApp(const ProviderScope(child: App()));
 
 class App extends StatelessWidget {
   const App({Key? key}) : super(key: key);
@@ -22,88 +18,56 @@ class App extends StatelessWidget {
   }
 }
 
-enum City {
-  cameroon,
-  nigeria,
-  tokyo,
-}
+const names = [
+  'Alices',
+  'Bob',
+  'Charlie',
+  'David',
+  'Eve',
+  'Fred',
+  'Ginny',
+  'Harriet',
+  'Ileana',
+  'Joseph',
+  'Kincaid',
+  'Larry',
+];
 
-typedef WeatherEmoji = String;
+final tickerProvider = StreamProvider((ref) => Stream.periodic(
+      const Duration(seconds: 1),
+      (i) => i + 1,
+    ));
 
-Future<WeatherEmoji> getWeather(City city) async {
-  await Future.delayed(const Duration(seconds: 1));
-  switch (city) {
-    case City.cameroon:
-      return '🌤';
-    case City.nigeria:
-      return '🌧';
-    case City.tokyo:
-      return '🌩';
-    default:
-      return '🔥';
-  }
-}
-
-// ui writes and read from this provider
-final currentCityProvider = StateProvider<City?>(
-  (ref) => null,
-);
-
-const unknownWeatherEmoji = '🤷';
-
-// will be read by the ui
-final weatherProvider = FutureProvider<WeatherEmoji>((ref) async {
-  final city = ref.watch(currentCityProvider);
-  if (city == null) {
-    return unknownWeatherEmoji;
-  } else {
-    return getWeather(city);
-  }
-});
+final namesProvider = StreamProvider((ref) => ref
+    .watch(tickerProvider.future)
+    .asStream()
+    .map((count) => names.getRange(0, count)));
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentWeather = ref.watch(weatherProvider);
+    final names = ref.watch(namesProvider);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home Page'),
+        title: const Text('Dark Mode'),
         centerTitle: true,
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-        currentWeather.when(
-          data: (data) => Text(data, style: const TextStyle(fontSize: 40),),
-          error: (error, stackTrace) => Text('Error: $error'),
-          loading: () => const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: CircularProgressIndicator()
-            )
-),
-          Expanded(
-            child: ListView.builder(
-              itemCount: City.values.length,
-              itemBuilder: (context, index) {
-                final city = City.values[index];
-                final isSelected = city == ref.watch(currentCityProvider);
-                return ListTile(
-                  title: Text(
-                    city.toString(),
-                  ),
-                  trailing: isSelected
-                    ? const Icon(Icons.check, color: Colors.blue)
-                    : null,
-                  onTap: () =>
-                    ref.read(currentCityProvider.notifier)
-                      .state = city,
-                );
-              }
-            ),
-          ),
-        ],
+      body: names.when(
+        data: (nqmes) {
+          return ListView.builder(
+            itemCount: names.asData!.value.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(names.asData!.value.elementAt(index)),
+              );
+            });
+          },
+        error: (error, stackTrace) =>
+            const Center(child: Text('Reached the end of the list')),
+        loading: () => const Center(child: CircularProgressIndicator()),
       ),
     );
   }
