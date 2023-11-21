@@ -71,18 +71,13 @@ jobs:
           flutter pub get
           flutter build apk --release --split-per-abi --obfuscate --split-debug-info=./build/app/outputs/symbols
 
-      
-
-#      - name: Upload Artifact
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: apk artefact upload
-#          path: "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk"
-      - name: Linux Release
-        id: release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload the Android Apk to Github Release
+        uses: ncipollo/release-action@v1
         with:
-          files: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-          tag_name: release-${{ steps.date.outputs.date }}
+          artifacts: "build/app/outputs/apk/release/*.apk"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-version: ${{ steps.date.outputs.date }}
+          release-name: ${{ steps.date.outputs.date }}
+          release-notes: ${{ steps.date.outputs.date }}
+          draft: false
+          prerelease: false
