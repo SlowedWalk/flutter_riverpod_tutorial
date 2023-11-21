@@ -85,15 +85,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-
-#      - name: Deploy on Google Drive
-#        uses: adityak74/google-drive-upload-git-action@main
-#        with:
-#          credentials: ${{secrets.DRIVE_CREDENTIALS}}
-#          filename: "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk"
-#          folderId: ${{secrets.FOLDER_ID}}
-#          #          folderId: 1PuMPaHJ-OyoF9UYRVj7Hgj2AZWPHk5_F
-#          #          folderId: 1PuMPaHJ-OyoF9UYRVj7Hgj2AZWPHk5_F
-#          name: ${{secrets.APP_NAME}}_${{steps.date.outputs.date}}.apk
-#          overwrite: "true"
-#          mimeType: "application/vnd.android.package-archive"
+          tag_name: release-${{ steps.date.outputs.date }}
