@@ -10,11 +10,9 @@ env:
   JAVA_DISTRIBUTION: "zulu"
 
 on:
-  push:
-    branches:
-      - "main"
+  create:
     tags:
-      - "*"
+      - v*
 
 jobs:
   # job 1 : app_testing
