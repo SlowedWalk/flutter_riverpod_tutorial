@@ -43,6 +43,10 @@ jobs:
     if: true
     needs: app_testing
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
     defaults:
       run:
         working-directory: .
