@@ -1,0 +1,99 @@
+name: Flutter CI 🏗️
+
+env:
+  VSCODE_VERSION: "1.84.0"
+  DART_VERSION: "3.1.5"
+  DART_CHANNEL: "stable"
+  FLUTTER_VERSION: "3.13.9"
+  FLUTTER_CHANNEL: "stable"
+  JAVA_VERSION: "17.x"
+  JAVA_DISTRIBUTION: "zulu"
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  # job 1 : app_testing
+  app_testing:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Checkout Flutter Actions
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{env.FLUTTER_VERSION}}
+          channel: ${{env.FLUTTER_CHANNEL}}
+
+      - name: Flutter test
+        run: |
+          flutter clean
+          flutter pub get
+          flutter analyze
+        # flutter test
+
+  # jobs 2 : android_app_build_and_release
+  android_app_build_and_release:
+    if: true
+    needs: app_testing
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Checkout Java Actions
+        uses: actions/setup-java@v3
+        with:
+          distribution: ${{env.JAVA_DISTRIBUTION}}
+          java-version: ${{env.JAVA_VERSION}}
+
+      - name: Checkout Flutter Actions
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{env.FLUTTER_VERSION}}
+          channel: ${{env.FLUTTER_CHANNEL}}
+
+      - name: Get Today Date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Build the Android Apk
+        run: |
+          flutter pub get
+          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=./build/app/outputs/symbols
+
+      
+
+#      - name: Upload Artifact
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: apk artefact upload
+#          path: "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk"
+      - name: Linux Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          files: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+
+#      - name: Deploy on Google Drive
+#        uses: adityak74/google-drive-upload-git-action@main
+#        with:
+#          credentials: ${{secrets.DRIVE_CREDENTIALS}}
+#          filename: "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk"
+#          folderId: ${{secrets.FOLDER_ID}}
+#          #          folderId: 1PuMPaHJ-OyoF9UYRVj7Hgj2AZWPHk5_F
+#          #          folderId: 1PuMPaHJ-OyoF9UYRVj7Hgj2AZWPHk5_F
+#          name: ${{secrets.APP_NAME}}_${{steps.date.outputs.date}}.apk
+#          overwrite: "true"
+#          mimeType: "application/vnd.android.package-archive"
