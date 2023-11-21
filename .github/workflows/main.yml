@@ -13,6 +13,8 @@ on:
   push:
     branches:
       - "main"
+    tags:
+      - "v*.*"
 
 jobs:
   # job 1 : app_testing
@@ -70,6 +72,12 @@ jobs:
         run: |
           flutter pub get
           flutter build apk --release --split-per-abi --obfuscate --split-debug-info=./build/app/outputs/symbols
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: apk artefact upload
+          path: "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk"
 
       - name: Upload the Android Apk to Github Release
         uses: ncipollo/release-action@v1
