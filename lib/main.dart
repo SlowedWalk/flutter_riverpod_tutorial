@@ -1,11 +1,121 @@
-import 'dart:collection';
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:uuid/uuid.dart';
 
 void main() => runApp(const ProviderScope(child: App()));
+
+@immutable
+class Film {
+  final String id;
+  final String title;
+  final String director;
+  final String releaseDate;
+  final bool isFavorite;
+
+  const Film({
+    required this.id,
+    required this.title,
+    required this.director,
+    required this.releaseDate,
+    required this.isFavorite,
+  });
+
+  Film copy({required bool isFavorite}) => Film(
+        id: id,
+        title: title,
+        director: director,
+        releaseDate: releaseDate,
+        isFavorite: isFavorite,
+      );
+
+  @override
+  String toString() => 'Film('
+      'id: $id, '
+      'title: $title, '
+      'director: $director, '
+      'releaseDate: $releaseDate, '
+      'isFavorite: $isFavorite)';
+
+  @override
+  bool operator ==(covariant Film other) =>
+      id == other.id && isFavorite == other.isFavorite;
+
+  @override
+  int get hashCode => Object.hashAll([id, isFavorite]);
+}
+
+const allFilms = [
+  Film(
+    id: '1',
+    title: 'The Shawshank Redemption',
+    director: "Frank Darabont",
+    releaseDate: "Sep 1994",
+    isFavorite: false,
+  ),
+  Film(
+    id: '2',
+    title: 'The Godfather',
+    director: 'Francis Ford Coppola',
+    releaseDate: "March 1972,",
+    isFavorite: false,
+  ),
+  Film(
+    id: '3',
+    title: 'The Godfather: Part II',
+    director: 'Francis Ford Coppola',
+    releaseDate: "Dec 1974",
+    isFavorite: false,
+  ),
+  Film(
+    id: '4',
+    title: 'The Dark Knight',
+    director: 'Christopher Nolan',
+    releaseDate: "July 2008",
+    isFavorite: false,
+  ),
+];
+
+class FilmsNotifier extends StateNotifier<List<Film>> {
+  FilmsNotifier() : super(allFilms);
+
+  void update(Film film, bool isFavorite) {
+    state = state
+        .map((element) =>
+            element.id == film.id ? film.copy(isFavorite: isFavorite) : element)
+        .toList();
+  }
+}
+
+enum FavoriteStatus {
+  all,
+  favorite,
+  notFavorite
+}
+
+final favoriteStatusProvider = StateProvider<FavoriteStatus>(
+  (_) => FavoriteStatus.all,
+);
+
+// all  films
+final allFilmsProvider = StateNotifierProvider<FilmsNotifier, List<Film>>(
+  (_) => FilmsNotifier(),
+);
+
+// favorite films
+final favoriteFilmsProvider = Provider<Iterable<Film>>(
+        (ref) => ref.watch(allFilmsProvider)
+            .where(
+                (film) => film.isFavorite
+        )
+);
+
+// not favorite films
+final notFavoriteFilmsProvider = Provider<Iterable<Film>>(
+        (ref) => ref.watch(allFilmsProvider)
+            .where(
+                (film) => !film.isFavorite
+        )
+);
+
 
 class App extends StatelessWidget {
   const App({Key? key}) : super(key: key);
@@ -22,60 +132,6 @@ class App extends StatelessWidget {
   }
 }
 
-@immutable
-class Person {
-  final String uuid;
-  final String name;
-  final int age;
-
-  Person({String? uuid, required this.name, required this.age})
-      : uuid = uuid ?? const Uuid().v4();
-
-  Person updated([String? name, int? age]) =>
-      Person(name: name ?? this.name, age: age ?? this.age, uuid: uuid);
-
-  String get displayName => '$name ($age years old)';
-
-  @override
-  bool operator ==(covariant Person other) => uuid == other.uuid;
-
-  @override
-  int get hashCode => uuid.hashCode;
-
-  @override
-  String toString() => 'Person(uuid: $uuid, name: $name, age: $age)';
-}
-
-class DataModel extends ChangeNotifier {
-  final List<Person> _people = [];
-
-  int get count => _people.length;
-
-  UnmodifiableListView<Person> get people => UnmodifiableListView(_people);
-
-  void add(Person person) {
-    _people.add(person);
-    notifyListeners();
-  }
-
-  void remove(Person person) {
-    _people.remove(person);
-    notifyListeners();
-  }
-
-  void update(Person updatedPerson) {
-    final index = _people.indexOf(updatedPerson);
-    final oldPerson = _people[index];
-    if (oldPerson.name != updatedPerson.name ||
-        oldPerson.age != updatedPerson.age) {
-      _people[index] = oldPerson.updated(updatedPerson.name, updatedPerson.age);
-      notifyListeners();
-    }
-  }
-}
-
-final peopleProvider = ChangeNotifierProvider((_) => DataModel());
-
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
@@ -83,127 +139,90 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dark Mode'),
+        title: const Text('Films'),
         centerTitle: true,
       ),
-      body: Consumer(
-        builder: (context, ref, child) {
-          final dataModel = ref.watch(peopleProvider);
-          return ListView.builder(
-              itemCount: dataModel.count,
-              itemBuilder: (context, index) {
-                final person = dataModel.people[index];
-                log(person.displayName, name: 'Person Name');
-                return ListTile(
-                  title: GestureDetector(
-                    onTap: () async {
-                      final updatedPerson = await createOrUpdatePersonDialog(
-                          context,
-                          "Update person",
-                          person
-                      );
-                      if (updatedPerson != null) {
-                        dataModel.update(updatedPerson);
-                      }
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          person.displayName,
-                          style: const TextStyle(
-                              color: Colors.white
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            dataModel.remove(person);
-                          },
-                          color: Colors.red,
-                          icon: const Icon(Icons.delete_forever_rounded),
-                        )
-                      ],
-                    ),
-                  ),
-                );
-              });
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final person = await createOrUpdatePersonDialog(context, "Create a person");
-          if (person != null) {
-            final dataModel = ref.read(peopleProvider);
-            dataModel.add(person);
+      body: Column(
+        children: [
+          const FilterWidget(),
+          Consumer(
+              builder: (context, ref, child) {
+                final filter = ref.watch(favoriteStatusProvider);
+                switch (filter) {
+                  case FavoriteStatus.all:
+                    return FilmsWidget(provider: allFilmsProvider);
+                  case FavoriteStatus.favorite:
+                    return FilmsWidget(provider: favoriteFilmsProvider);
+                  case FavoriteStatus.notFavorite:
+                    return FilmsWidget(provider: notFavoriteFilmsProvider);
+                }
+              }
+          )
+        ],
+      )
+    );
+  }
+}
+
+class FilmsWidget extends ConsumerWidget {
+  final AlwaysAliveProviderBase<Iterable<Film>> provider;
+
+  const FilmsWidget({required this.provider, super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final films = ref.watch(provider);
+    return Expanded(
+      child: ListView.builder(
+        itemCount: films.length,
+          itemBuilder: (context, index) {
+            final film = films.elementAt(index);
+            final favoriteIcon = film.isFavorite
+                ? const Icon(Icons.favorite, color: Colors.red)
+                : const Icon(Icons.favorite_border);
+            return ListTile(
+              title: Text(film.title),
+              subtitle: Row(
+                children: [
+                  Text(film.director),
+                  Text(' ${film.releaseDate}'),
+                ],
+              ),
+              trailing: IconButton(
+                icon: favoriteIcon,
+                onPressed: () {
+                  ref.read(allFilmsProvider.notifier).update(film, !film.isFavorite);
+                },
+              ),
+            );
           }
-        },
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.add),
       ),
     );
   }
 }
 
-final nameController = TextEditingController();
-final ageController = TextEditingController();
+class FilterWidget extends StatelessWidget {
+  const FilterWidget({super.key});
 
-Future<Person?> createOrUpdatePersonDialog(
-  BuildContext context, String operation, [
-  Person? existingPerson,
-]) {
-  String? name = existingPerson?.name;
-  int? age = existingPerson?.age;
-
-  nameController.text = name ?? '';
-  ageController.text = age?.toString() ?? '';
-
-  return showDialog<Person?>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(operation),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration:const InputDecoration(
-                    labelText: 'Enter name here...'
-                ),
-                onChanged: (value) => name = value,
-              ),
-              TextField(
-                controller: ageController,
-                decoration: const InputDecoration(
-                    labelText: 'Enter age here...'
-                ),
-                onChanged: (value) => age = int.tryParse(value),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel')),
-            TextButton(
-                onPressed: () {
-                  if (name != null && age != null) {
-                    print('$name $age');
-                    if (existingPerson != null) {
-                      print(existingPerson.name);
-                      // with an existing person
-                      final newPerson = existingPerson.updated(name, age);
-                      Navigator.of(context).pop(newPerson);
-                    } else {
-                      // With no existing person, create a new one
-                      Navigator.of(context).pop(
-                          Person(name: name!, age: age!)
-                      );
-                    }
-                  }
-                },
-                child: const Text('Save')),
-          ],
-        );
-      });
+  @override
+  Widget build(BuildContext context) {
+    return Consumer(
+        builder: (context, ref, child) {
+          final favoriteStatus = ref.watch(favoriteStatusProvider);
+          return DropdownButton(
+            value: favoriteStatus,
+              items: FavoriteStatus.values.map((status) {
+                return DropdownMenuItem(
+                  value: status,
+                  child: Text(status.toString().split('.').last),
+                );
+              }).toList(),
+              onChanged: (value) {
+                ref.read(favoriteStatusProvider.notifier).state = value!;
+              }
+          );
+        }
+    );
+  }
 }
+
